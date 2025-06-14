@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+websockets
+starlette
+pydub
+numpy
+soundfile
+openai-whisper
+langdetect
+deep-translator
+sqlalchemy
+tortoise-orm
+passlib
+fastapi-users 
