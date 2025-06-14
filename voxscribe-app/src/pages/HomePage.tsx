@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ProfileDropdown from '../components/ProfileDropdown';
 
 const HelpCircleIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -20,6 +21,7 @@ const HomePage = () => {
     const [roomId, setRoomId] = useState('');
     const [microphones, setMicrophones] = useState<MediaDeviceInfo[]>([]);
     const [selectedMic, setSelectedMic] = useState('');
+    const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     
     useEffect(() => {
         const getMicrophones = async () => {
@@ -65,14 +67,19 @@ const HomePage = () => {
                         <button className="p-2 rounded-full hover:bg-gray-800">
                             <HelpCircleIcon />
                         </button>
-                        <img className="h-9 w-9 rounded-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="User" />
+                        <div className="relative">
+                            <button onClick={() => setIsProfileDropdownOpen(prev => !prev)}>
+                                <img className="h-9 w-9 rounded-full object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="User" />
+                            </button>
+                            {isProfileDropdownOpen && <ProfileDropdown />}
+                        </div>
                     </div>
                 </nav>
             </header>
 
             <main className="flex-grow flex items-center justify-center">
                 <div className="bg-gray-800 p-10 rounded-xl shadow-lg w-full max-w-lg">
-                    <h2 className="text-3xl font-bold text-center">Start a conversation with blanche</h2>
+                    <h2 className="text-3xl font-bold text-center">Start a conversation</h2>
                     <p className="text-center text-gray-400 mt-2 mb-8">Create or join a room to begin.</p>
                     
                     <div className="space-y-6">

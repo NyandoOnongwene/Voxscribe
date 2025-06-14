@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
+import ProfileDropdown from '../components/ProfileDropdown';
 
 // --- Type Definitions ---
 interface Participant {
@@ -92,6 +93,7 @@ const ConvoRoom = () => {
     const [messages, setMessages] = useState<Message[]>(mockMessages);
     const [micOn, setMicOn] = useState(false);
     const [translateTo, setTranslateTo] = useState('en');
+    const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
     const streamRef = useRef<MediaStream | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
@@ -261,7 +263,12 @@ const ConvoRoom = () => {
             <button className="p-2 rounded-full hover:bg-gray-800">
               <HelpCircleIcon />
             </button>
-            <img className="h-9 w-9 rounded-full object-cover" src="https://images.unsplash.com/photo-1511367461989-f85a21fda167?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="Current User" />
+            <div className="relative">
+                <button onClick={() => setIsProfileDropdownOpen(prev => !prev)}>
+                    <img className="h-9 w-9 rounded-full object-cover" src="https://images.unsplash.com/photo-1511367461989-f85a21fda167?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="Current User" />
+                </button>
+                {isProfileDropdownOpen && <ProfileDropdown />}
+            </div>
           </div>
         </nav>
       </header>
