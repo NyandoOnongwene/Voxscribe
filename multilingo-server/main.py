@@ -41,9 +41,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
             # In a real implementation, we would get participants' languages from the db
             # For now, let's assume a simple case
             
-            # 3. Translate for recipients (dummy example)
+            # 3. Translate for recipients
             # This part needs to be connected to the ConvoRoom participants' data
-            translated_text = text_translator.translate(original_text, detected_language, "es") # translate to Spanish
+            translated_text = text_translator.translate(original_text, detected_language, "fr") # translate to French
             
             # 4. Create and broadcast message
             message = Message(
@@ -51,7 +51,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                 original_text=original_text,
                 language=detected_language,
                 translated_text=translated_text,
-                recipient_language="es", # This should be dynamic per participant
+                recipient_language="fr", # This should be dynamic per participant
                 timestamp=datetime.utcnow().isoformat() + "Z"
             )
             

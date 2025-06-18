@@ -49,27 +49,22 @@ const EndSessionIcon = () => (
     </svg>
 );
 
+const StopIcon = ({ className = "h-5 w-5 mr-2" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="currentColor" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 6h12v12H6z" />
+    </svg>
+);
+
 const RefreshCwIcon = ({ className }: { className: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 11A8.1 8.1 0 004.5 9M4 5v4h4m-4 4a8.1 8.1 0 0015.5 2 8.1 8.1 0 00-15.5-2" />
     </svg>
 );
 
-// --- Mock Data ---
-const mockParticipants: Participant[] = [
-    { name: 'User A', avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80', status: 'speaking' },
-    { name: 'User B', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80', status: 'muted' },
-];
-
-const mockMessages: Message[] = [
-    { speaker: 'User A', original_text: 'Bonjour tout le monde', language: 'fr', translated_text: 'Hello everyone', timestamp: '2025-06-14T14:32:10Z' },
-    { speaker: 'User B', original_text: 'Hola, gracias por invitarme', language: 'es', translated_text: 'Hi, thanks for having me', timestamp: '2025-06-14T14:32:15Z' },
-    { speaker: 'User A', original_text: 'Commençons par le premier point à l\'ordre du jour.', language: 'fr', translated_text: 'Let\'s start with the first agenda item.', timestamp: '2025-06-14T14:32:20Z' },
-];
-
 const TranscriptMessage = ({ message }: { message: Message }) => {
     const [showOriginal, setShowOriginal] = useState(false);
-    const userColor = message.speaker === 'User A' ? 'text-blue-400' : 'text-purple-400';
+    // Use a consistent color for all speakers for now
+    const userColor = 'text-blue-400';
 
     return (
         <div onMouseEnter={() => setShowOriginal(true)} onMouseLeave={() => setShowOriginal(false)} className="relative">
@@ -89,9 +84,9 @@ const TranscriptMessage = ({ message }: { message: Message }) => {
 const ConvoRoom = () => {
     const { id: roomId } = useParams<{ id: string }>();
     const location = useLocation();
-    const [participants] = useState<Participant[]>(mockParticipants);
-    const [messages, setMessages] = useState<Message[]>(mockMessages);
-    const [micOn, setMicOn] = useState(false);
+    const [participants, setParticipants] = useState<Participant[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [isRecording, setIsRecording] = useState(false);
     const [translateTo, setTranslateTo] = useState('en');
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
@@ -99,10 +94,27 @@ const ConvoRoom = () => {
     const wsRef = useRef<WebSocket | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const audioProcessorRef = useRef<ScriptProcessorNode | null>(null);
+    const audioChunksRef = useRef<Float32Array[]>([]);
 
-    const toggleMic = async () => {
-        if (micOn) {
-            // Turn microphone off
+    const concatenateFloat32Arrays = (arrays: Float32Array[]): Float32Array => {
+        let totalLength = 0;
+        for (const arr of arrays) {
+            totalLength += arr.length;
+        }
+        const result = new Float32Array(totalLength);
+        let offset = 0;
+        for (const arr of arrays) {
+            result.set(arr, offset);
+            offset += arr.length;
+        }
+        return result;
+    };
+
+    const handleMicClick = async () => {
+        if (isRecording) {
+            // Stop recording
+            setIsRecording(false);
+            
             if (streamRef.current) {
                 streamRef.current.getTracks().forEach(track => track.stop());
                 streamRef.current = null;
@@ -114,10 +126,21 @@ const ConvoRoom = () => {
             if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
                 audioContextRef.current.close();
             }
-            setMicOn(false);
+    
+            if (audioChunksRef.current.length > 0) {
+                const completeBuffer = concatenateFloat32Arrays(audioChunksRef.current);
+                // The buffer is already downsampled to 16000
+                const wavBlob = bufferToWav(completeBuffer);
+                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                    wsRef.current.send(wavBlob);
+                }
+            }
+            audioChunksRef.current = []; // Reset chunks
+
         } else {
-            // Turn microphone on
+            // Start recording
             try {
+                audioChunksRef.current = []; // Clear any previous chunks
                 const selectedMicId = location.state?.selectedMic;
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     audio: selectedMicId ? { deviceId: { exact: selectedMicId } } : true 
@@ -133,17 +156,14 @@ const ConvoRoom = () => {
                 processor.onaudioprocess = (e) => {
                     const inputData = e.inputBuffer.getChannelData(0);
                     const downsampled = downsampleBuffer(inputData, audioContext.sampleRate, 16000);
-                    const wavBlob = bufferToWav(downsampled);
-                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                        wsRef.current.send(wavBlob);
-                    }
+                    audioChunksRef.current.push(new Float32Array(downsampled));
                 };
                 
                 source.connect(processor);
                 processor.connect(audioContext.destination);
                 audioProcessorRef.current = processor;
 
-                setMicOn(true);
+                setIsRecording(true);
             } catch (error) {
                 console.error("Error accessing microphone:", error);
             }
@@ -214,11 +234,11 @@ const ConvoRoom = () => {
 
     useEffect(() => {
         // Connect to WebSocket server
-        // Replace with your actual WebSocket server URL
-        wsRef.current = new WebSocket(`ws://localhost:8000/ws/${roomId}`);
+        const userId = `user_${Math.random().toString(36).substring(7)}`;
+        wsRef.current = new WebSocket(`ws://localhost:8000/ws/${roomId}/${userId}`);
 
         wsRef.current.onopen = () => {
-            console.log('WebSocket connected');
+            console.log(`WebSocket connected for user ${userId}`);
         };
 
         wsRef.current.onmessage = (event) => {
@@ -283,22 +303,26 @@ const ConvoRoom = () => {
           <section>
             <h3 className="text-xl font-semibold mb-4 text-gray-300">Participants</h3>
             <div className="bg-gray-800 rounded-xl p-6 flex items-center space-x-8">
-                {participants.map(p => (
-                    <div key={p.name} className="flex items-center space-x-4">
-                        <div className="relative">
-                            <img className={`h-14 w-14 rounded-full object-cover ${p.status === 'speaking' ? 'ring-2 ring-green-500' : ''}`} src={p.avatar} alt={p.name} />
-                            {p.status === 'speaking' && (
-                                <div className="absolute bottom-0 right-0 bg-green-500 rounded-full p-1">
-                                    <MicIcon className="h-2 w-2 text-white" />
-                                </div>
-                            )}
+                {participants.length > 0 ? (
+                    participants.map(p => (
+                        <div key={p.name} className="flex items-center space-x-4">
+                            <div className="relative">
+                                <img className={`h-14 w-14 rounded-full object-cover ${p.status === 'speaking' ? 'ring-2 ring-green-500' : ''}`} src={p.avatar} alt={p.name} />
+                                {p.status === 'speaking' && (
+                                    <div className="absolute bottom-0 right-0 bg-green-500 rounded-full p-1">
+                                        <MicIcon className="h-2 w-2 text-white" />
+                                    </div>
+                                )}
+                            </div>
+                            <div>
+                                <p className="font-semibold">{p.name}</p>
+                                <p className={`text-sm ${p.status === 'speaking' ? 'text-green-400' : 'text-gray-400'}`}>{p.status === 'speaking' ? 'Speaking...' : 'Muted'}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="font-semibold">{p.name}</p>
-                            <p className={`text-sm ${p.status === 'speaking' ? 'text-green-400' : 'text-gray-400'}`}>{p.status === 'speaking' ? 'Speaking...' : 'Muted'}</p>
-                        </div>
-                    </div>
-                ))}
+                    ))
+                ) : (
+                    <p className="text-gray-400">You appear to be the only one in the room.</p>
+                )}
             </div>
           </section>
 
@@ -313,8 +337,11 @@ const ConvoRoom = () => {
               </div>
               <div className="bg-gray-800 rounded-xl p-6 h-64">
                 <div className="space-y-3 text-sm text-gray-300 h-full overflow-y-auto">
-                    {messages.map((msg, i) => <TranscriptMessage key={i} message={msg} />)}
-                    <p className="text-gray-500 italic mt-4">Transcript will appear here as the conversation progresses...</p>
+                    {messages.length > 0 ? (
+                        messages.map((msg, i) => <TranscriptMessage key={i} message={msg} />)
+                    ) : (
+                        <p className="text-gray-500 italic mt-4">Transcript will appear here as the conversation progresses...</p>
+                    )}
                 </div>
               </div>
             </section>
@@ -345,11 +372,11 @@ const ConvoRoom = () => {
             <h3 className="text-xl font-semibold mb-4 text-gray-300">Controls</h3>
             <div className="bg-gray-800 rounded-xl p-6 flex justify-center items-center space-x-4">
                 <button 
-                    onClick={toggleMic}
-                    className={`${micOn ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} text-white font-bold py-2 px-5 rounded-lg flex items-center justify-center w-32`}
+                    onClick={handleMicClick}
+                    className={`${isRecording ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-bold py-2 px-5 rounded-lg flex items-center justify-center w-48`}
                 >
-                    {micOn ? <MicIcon /> : <MutedMicIcon />}
-                    {micOn ? 'Mic On' : 'Mic Off'}
+                    {isRecording ? <StopIcon /> : <MicIcon />}
+                    {isRecording ? 'Stop Recording' : 'Start Recording'}
                 </button>
                 <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-5 rounded-lg flex items-center justify-center">
                     <EndSessionIcon />
