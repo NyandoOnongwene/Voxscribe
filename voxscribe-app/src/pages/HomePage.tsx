@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ProfileDropdown from '../components/ProfileDropdown';
+import ThemeToggle from '../components/ThemeToggle';
 
 const HelpCircleIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -54,17 +55,18 @@ const HomePage = () => {
 
 
     return (
-        <div className="bg-gray-900 text-white min-h-screen font-sans flex flex-col">
-            <header className="border-b border-gray-800">
+        <div className="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white min-h-screen font-sans flex flex-col transition-colors duration-200">
+            <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
                 <nav className="container mx-auto px-8 py-4 flex justify-between items-center">
                     <div className="flex items-center space-x-2">
                          <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 2L13.2526 7.43934L14.5053 12L19.9449 10.7474L14.5053 12L19.9449 13.2526L14.5053 12L13.2526 16.5607L12 22L10.7474 16.5607L9.49473 12L4.05507 13.2526L9.49473 12L4.05507 10.7474L9.49473 12L10.7474 7.43934L12 2Z" fill="white"/>
+                            <path d="M12 2L13.2526 7.43934L14.5053 12L19.9449 10.7474L14.5053 12L19.9449 13.2526L14.5053 12L13.2526 16.5607L12 22L10.7474 16.5607L9.49473 12L4.05507 13.2526L9.49473 12L4.05507 10.7474L9.49473 12L10.7474 7.43934L12 2Z" fill="currentColor"/>
                         </svg>
                         <h1 className="text-xl font-bold">Convo</h1>
                     </div>
                      <div className="flex items-center space-x-4">
-                        <button className="p-2 rounded-full hover:bg-gray-800">
+                        <ThemeToggle />
+                        <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                             <HelpCircleIcon />
                         </button>
                         <div className="relative">
@@ -78,30 +80,30 @@ const HomePage = () => {
             </header>
 
             <main className="flex-grow flex items-center justify-center">
-                <div className="bg-gray-800 p-10 rounded-xl shadow-lg w-full max-w-lg">
+                <div className="bg-white dark:bg-gray-800 p-10 rounded-xl shadow-lg w-full max-w-lg">
                     <h2 className="text-3xl font-bold text-center">Start a conversation</h2>
-                    <p className="text-center text-gray-400 mt-2 mb-8">Create or join a room to begin.</p>
+                    <p className="text-center text-gray-600 dark:text-gray-400 mt-2 mb-8">Create or join a room to begin.</p>
                     
                     <div className="space-y-6">
                         <div>
-                            <label htmlFor="roomId" className="block text-sm font-medium text-gray-300 mb-1">Room ID</label>
+                            <label htmlFor="roomId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Room ID</label>
                             <input
                                 type="text"
                                 id="roomId"
                                 value={roomId}
                                 onChange={(e) => setRoomId(e.target.value)}
                                 placeholder="Enter or create room ID"
-                                className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-3 text-sm text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                             />
                         </div>
 
                          <div>
-                            <label htmlFor="microphone" className="block text-sm font-medium text-gray-300 mb-1">Microphone</label>
+                            <label htmlFor="microphone" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Microphone</label>
                             <select
                                 id="microphone"
                                 value={selectedMic}
                                 onChange={(e) => setSelectedMic(e.target.value)}
-                                className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-3 text-sm text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500"
                             >
                                 {microphones.map(mic => (
                                     <option key={mic.deviceId} value={mic.deviceId}>{mic.label}</option>
@@ -110,13 +112,13 @@ const HomePage = () => {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">Language (Your Speech to Target)</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Language (Your Speech to Target)</label>
                             <div className="flex items-center space-x-4">
-                                <select className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-sm focus:ring-blue-500 focus:border-blue-500">
+                                <select className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-3 text-sm text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500">
                                     <option>English (US)</option>
                                 </select>
                                 <ArrowRightIcon />
-                                <select className="w-full bg-gray-700 border-gray-600 rounded-md p-3 text-sm focus:ring-blue-500 focus:border-blue-500">
+                                <select className="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md p-3 text-sm text-gray-900 dark:text-white focus:ring-blue-500 focus:border-blue-500">
                                     <option>Français</option>
                                 </select>
                             </div>

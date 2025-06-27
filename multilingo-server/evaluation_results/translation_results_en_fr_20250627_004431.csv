@@ -1,0 +1,16 @@
+source_text,reference_translation,predicted_translation,correct,bleu,f1
+"Hello, how are you today?","Bonjour, comment allez-vous aujourd'hui?","Bonjour, comment vas-tu aujourd'hui?",False,0.0,0.75
+The weather is nice outside.,Il fait beau dehors.,Le temps est beau dehors.,False,0.0,0.4444444444444445
+I need to go to the store.,Je dois aller au magasin.,J'ai besoin d'aller au magasin.,False,0.0,0.4000000000000001
+What time is the meeting?,À quelle heure est la réunion?,À quelle heure est la réunion?,True,1.0,1.0
+Thank you for your help.,Merci pour votre aide.,Thank you for your help.,False,0.0,0.0
+Please call me tomorrow.,Appelez-moi demain s'il vous plaît.,S'il vous plaît appelez-moi demain.,False,0.0,0.6
+The project is almost complete.,Le projet est presque terminé.,Le projet est presque terminé.,True,1.0,1.0
+Can you send me the report?,Pouvez-vous m'envoyer le rapport?,Pouvez-vous m'envoyer le rapport?,True,1.0,1.0
+I will be there at five o'clock.,Je serai là à cinq heures.,Je serai là à cinq heures.,True,1.0,1.0
+Have a great day!,Passez une excellente journée!,Passe une bonne journée!,False,0.0,0.5
+The conference call starts at noon.,La téléconférence commence à midi.,La conférence téléphonique commence à midi.,False,0.0,0.7272727272727272
+We need to discuss the budget.,Nous devons discuter du budget.,Nous devons discuter du budget.,True,1.0,1.0
+The deadline is next Friday.,La date limite est vendredi prochain.,La date limite aura lieu vendredi prochain.,False,0.0,0.7692307692307692
+Can you review this document?,Pouvez-vous réviser ce document?,Pouvez-vous revoir ce document?,False,0.0,0.75
+I'll send you the updated version.,Je vous enverrai la version mise à jour.,Je vous enverrai la version mise à jour.,True,1.0,1.0

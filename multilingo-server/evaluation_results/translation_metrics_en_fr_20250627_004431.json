@@ -1,0 +1,16 @@
+{
+  "bleu_score": 0.4,
+  "f1_score": 0.7293965293965295,
+  "accuracy": 0.4,
+  "character_error_rate": 0.25417725517725515,
+  "character_accuracy": 0.7458227448227448,
+  "semantic_similarity": 0.6462698412698412,
+  "avg_reference_length": 5.0,
+  "avg_prediction_length": 5.266666666666667,
+  "length_ratio": 1.0533333333333332,
+  "avg_processing_time": 2.1435681343078614,
+  "total_translations": 15,
+  "successful_translations": 15,
+  "source_language": "en",
+  "target_language": "fr"
+}

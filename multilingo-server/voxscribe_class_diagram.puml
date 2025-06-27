@@ -1,0 +1,71 @@
+@startuml Voxscribe Database Schema
+
+!theme plain
+skinparam backgroundColor white
+skinparam classBackgroundColor lightblue
+skinparam classBorderColor darkblue
+
+class User {
+    +id: Integer <<PK>>
+    +name: String
+    +email: String <<UK>>
+    +password_hash: String
+    +main_language: String
+    +created_at: DateTime
+}
+
+class ConversationRoom {
+    +id: Integer <<PK>>
+    +room_id: String <<UK>>
+    +name: String
+    +created_by: Integer <<FK>>
+    +created_at: DateTime
+}
+
+class UserRoomParticipants {
+    +user_id: Integer <<PK,FK>>
+    +room_id: Integer <<PK,FK>>
+    +preferred_language: String
+    +translate_to_language: String
+    +joined_at: DateTime
+}
+
+class Transcription {
+    +id: Integer <<PK>>
+    +user_id: Integer <<FK>>
+    +room_id: Integer <<FK>>
+    +original_text: Text
+    +detected_language: String
+    +timestamp: DateTime
+}
+
+class Translation {
+    +id: Integer <<PK>>
+    +transcription_id: Integer <<FK>>
+    +target_language: String
+    +translated_text: Text
+    +created_at: DateTime
+}
+
+class Message {
+    +id: Integer <<PK>>
+    +user_id: Integer <<FK>>
+    +room_id: Integer <<FK>>
+    +transcription_id: Integer <<FK>>
+    +original_text: Text
+    +translated_text: Text
+    +timestamp: DateTime
+}
+
+' Relationships
+User ||--o{ UserRoomParticipants
+ConversationRoom ||--o{ UserRoomParticipants
+User ||--o{ ConversationRoom : creates
+User ||--o{ Transcription
+User ||--o{ Message
+ConversationRoom ||--o{ Transcription
+ConversationRoom ||--o{ Message
+Transcription ||--o{ Translation
+Transcription ||--o{ Message
+
+@enduml 

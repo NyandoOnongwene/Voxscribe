@@ -1,0 +1,12 @@
+{
+  "word_error_rate": 0.1568253968253968,
+  "character_error_rate": 0.10187570058969654,
+  "f1_score": 0.9116468716468717,
+  "accuracy": 0.3333333333333333,
+  "bleu_score": 0.45979403394558227,
+  "word_accuracy": 0.6698412698412698,
+  "avg_processing_time": 0.00035880406697591147,
+  "avg_confidence_score": 0.903809523809524,
+  "total_texts": 15,
+  "successful_transcriptions": 15
+}
