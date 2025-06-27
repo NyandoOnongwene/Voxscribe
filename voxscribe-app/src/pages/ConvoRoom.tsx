@@ -100,7 +100,7 @@ const TranscriptMessage = ({ message }: { message: Message }) => {
 };
 
 const ConvoRoom = () => {
-    const { roomId } = useParams<{ roomId: string }>();
+    const { id: roomId } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -126,7 +126,7 @@ const ConvoRoom = () => {
 
     // Authentication check
     useEffect(() => {
-        const storedUser = localStorage.getItem('currentUser');
+        const storedUser = localStorage.getItem('user');
         if (storedUser) {
             const user = JSON.parse(storedUser);
             setCurrentUser(user);
