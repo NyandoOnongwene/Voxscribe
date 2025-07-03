@@ -357,71 +357,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     print(f"WebSocket disconnect received for user {user_id}")
                     break
                 
-                # Handle text messages (control messages)
-                if raw_data.get("type") == "websocket.receive" and "text" in raw_data:
-                    try:
-                        message = json.loads(raw_data["text"])
-                        
-                        # Handle different message types
-                        if message.get("type") == "join":
-                            # Refresh participants list when someone joins
-                            participants = RoomService.get_room_participants(db, room_id)
-                            await manager.broadcast(json.dumps({
-                                "type": "participant_joined",
-                                "user_id": message["user_id"],
-                                "user_name": message["user_name"],
-                                "language": message["language"]
-                            }), room_id)
-                            continue
-                            
-                        elif message.get("type") == "end_session":
-                            # Only room creator can end session for everyone
-                            if room.created_by == int(user_id):
-                                print(f"Room creator {user_id} ending session for room {room_id}")
-                                
-                                # Broadcast session ended message first
-                                await manager.broadcast(json.dumps({
-                                    "type": "session_ended",
-                                    "ended_by": user.name,
-                                    "message": "Session ended by room creator"
-                                }), room_id)
-                                
-                                # Close the entire room
-                                await manager.close_room(room_id, "Session ended by creator")
-                                return
-                            else:
-                                await websocket.send_text(json.dumps({
-                                    "type": "error",
-                                    "message": "Only the room creator can end the session"
-                                }))
-                                continue
-                            
-                        elif message.get("type") == "leave":
-                            await manager.broadcast(json.dumps({
-                                "type": "participant_left",
-                                "user_id": message["user_id"]
-                            }), room_id)
-                            break  # Exit the loop when user leaves
-                            
-                        elif message.get("type") == "speaking_status":
-                            await manager.broadcast(json.dumps({
-                                "type": "speaking_status",
-                                "user_id": message["user_id"],
-                                "is_speaking": message["is_speaking"]
-                            }), room_id)
-                            continue
-                            
-                        elif message.get("type") == "language_change":
-                            # Handle language preference change
-                            print(f"User {user_id} changed language preference")
-                            # Refresh participants to get updated language preferences
-                            participants = RoomService.get_room_participants(db, room_id)
-                            continue
-                            
-                    except json.JSONDecodeError:
-                        print("Invalid JSON received")
-                        continue
-                
                 # Handle binary data (audio)
                 elif raw_data.get("type") == "websocket.receive" and "bytes" in raw_data:
                     data = raw_data["bytes"]
@@ -429,9 +364,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
                     # 1. Convert audio chunk to WAV
                     audio_array = convert_audio_to_wav(data)
                     
-                    # 2. Transcribe using Whisper with speaker's main language
-                    # Use the speaker's main language as the target transcription language
-                    speaker_main_language = user.main_language
+                    # 2. Transcribe using Whisper - FORCED TO ENGLISH
+                    speaker_main_language = 'en' # Force transcription to English
+                    print(f"Transcribing with forced language: {speaker_main_language}")
                     transcription_result = whisper_engine.transcribe(audio_array, language=speaker_main_language)
                     original_text = transcription_result["text"]
                     
@@ -440,137 +375,151 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str, user_id: str):
 
                     print(f"Transcription to {speaker_main_language}: {original_text}")
                     
-                    # 3. Save transcription to database (using speaker's main language)
+                    # 3. Save transcription to database
                     db_transcription = TranscriptionService.create_transcription(
                         db=db,
                         user_id=int(user_id),
                         room_id=room_id,
                         original_text=original_text,
-                        detected_language=speaker_main_language,  # Use speaker's main language
+                        detected_language=speaker_main_language,
                         confidence_score=str(transcription_result.get("confidence", ""))
                     )
                     
-                    # 4. Create translations from speaker's language to other participants' preferred languages
+                    # 4. Broadcast the original transcription message FIRST
+                    original_message = MessageService.create_message(
+                        db=db, user_id=int(user_id), room_id=room_id,
+                        speaker_name=user.name, original_text=original_text,
+                        original_language=speaker_main_language,
+                        translated_text=None, target_language=speaker_main_language,
+                        transcription_id=db_transcription.id
+                    )
+                    
+                    message_data_orig = {
+                        "type": "transcription", "message_id": original_message.id,
+                        "speaker_id": int(user_id), "speaker_name": user.name,
+                        "original_text": original_text, "original_language": speaker_main_language,
+                        "translated_text": original_text, "target_language": speaker_main_language,
+                        "timestamp": original_message.timestamp.isoformat() + "Z",
+                        "transcription_id": db_transcription.id
+                    }
+                    await manager.broadcast(json.dumps(message_data_orig), room_id)
+
+                    # 5. Create and broadcast separate translation messages to everyone
                     translations = {}
                     target_languages = set()
-                    
-                    # Get unique target languages from other participants (not the speaker)
-                    for participant in participants:
-                        # Skip the speaker themselves
-                        if participant['user'].id == int(user_id):
+                    # Collect all unique language preferences from all participants
+                    for p in participants:
+                        target_languages.add(p['translate_to_language'])
+
+                    # We don't need to re-broadcast the original language
+                    if speaker_main_language in target_languages:
+                        target_languages.remove(speaker_main_language)
+
+                    if target_languages:
+                        print(f"DEBUG: Translation required for languages: {list(target_languages)}")
+                        for lang in target_languages:
+                            print(f"DEBUG: Translating from '{speaker_main_language}' to '{lang}' for text: '{original_text}'")
+                            translated_text = text_translator.translate(
+                                text=original_text, src_lang=speaker_main_language, dest_lang=lang
+                            )
+                            print(f"DEBUG: Translation result to {lang}: {translated_text}")
+                            
+                            # Save the translated message to DB
+                            translated_message = MessageService.create_message(
+                                db=db, user_id=int(user_id), room_id=room_id,
+                                speaker_name=user.name, original_text=original_text,
+                                original_language=speaker_main_language,
+                                translated_text=translated_text, target_language=lang,
+                                transcription_id=db_transcription.id
+                            )
+                            
+                            # Prepare payload for broadcasting
+                            message_data_trans = {
+                                "type": "transcription", 
+                                "message_id": translated_message.id,
+                                "speaker_id": int(user_id), "speaker_name": user.name,
+                                "original_text": original_text, "original_language": speaker_main_language,
+                                "translated_text": translated_text, "target_language": lang,
+                                "timestamp": translated_message.timestamp.isoformat() + "Z",
+                                "transcription_id": db_transcription.id
+                            }
+                            
+                            # Broadcast the translated message to everyone
+                            print(f"DEBUG: Broadcasting translated message for language '{lang}' to room '{room_id}'")
+                            await manager.broadcast(json.dumps(message_data_trans), room_id)
+                    else:
+                        print("DEBUG: No translation needed for any participant.")
+                
+                # Handle text messages (control messages)
+                elif raw_data.get("type") == "websocket.receive" and "text" in raw_data:
+                    try:
+                        message = json.loads(raw_data["text"])
+                        
+                        # Handle different message types
+                        if message.get("type") == "language_change":
+                            # Handle language preference change
+                            new_lang = message.get("translate_to")
+                            user_id_for_lang_change = message.get("user_id")
+
+                            if new_lang and user_id_for_lang_change:
+                                print(f"User {user_id_for_lang_change} changed language preference to {new_lang}")
+                                # Update in the database
+                                updated = RoomService.update_participant_language(
+                                    db, room.id, user_id_for_lang_change, new_lang
+                                )
+                                if updated:
+                                    # Refresh participants to get updated language preferences
+                                    participants = RoomService.get_room_participants(db, room_id)
+                                    # Notify other users about the language change
+                                    await manager.broadcast(json.dumps({
+                                        "type": "participant_language_changed",
+                                        "user_id": user_id_for_lang_change,
+                                        "new_language": new_lang
+                                    }), room_id)
                             continue
-                            
-                        target_lang = participant['translate_to_language']
-                        if target_lang != speaker_main_language and target_lang not in target_languages:
-                            target_languages.add(target_lang)
-                            
-                            try:
-                                translated_text = text_translator.translate(
-                                    original_text, speaker_main_language, target_lang
-                                )
-                                
-                                # Save translation to database
-                                TranscriptionService.add_translation(
-                                    db=db,
-                                    transcription_id=db_transcription.id,
-                                    target_language=target_lang,
-                                    translated_text=translated_text,
-                                    translation_service="deep-translator"
-                                )
-                                
-                                translations[target_lang] = translated_text
-                                print(f"Translated to {target_lang}: {translated_text}")
-                                
-                            except Exception as e:
-                                print(f"Translation error for {target_lang}: {e}")
-                                translations[target_lang] = original_text
-                    
-                    # 5. Send targeted messages to each participant based on their language preference
-                    for participant in participants:
-                        participant_user = participant['user']
-                        target_lang = participant['translate_to_language']
                         
-                        # Determine what message to show this participant
-                        if participant_user.id == int(user_id):
-                            # For the speaker: show original text in their main language
-                            display_text = original_text
-                            display_language = speaker_main_language
-                        else:
-                            # For other participants: show translation to their preferred language
-                            if target_lang == speaker_main_language:
-                                # Same language as speaker, show original
-                                display_text = original_text
-                                display_language = speaker_main_language
-                            else:
-                                # Show translation to participant's preferred language
-                                display_text = translations.get(target_lang, original_text)
-                                display_language = target_lang
-                        
-                        # Save message to database for this participant
-                        db_message = MessageService.create_message(
-                            db=db,
-                            user_id=int(user_id),
-                            room_id=room_id,
-                            speaker_name=user.name,
-                            original_text=original_text,
-                            original_language=speaker_main_language,
-                            translated_text=display_text if display_language != speaker_main_language else None,
-                            target_language=display_language,
-                            transcription_id=db_transcription.id
-                        )
-                        
-                        # Send targeted message to this specific participant
-                        participant_message = {
-                            "type": "transcription",
-                            "message_id": db_message.id,
-                            "speaker_name": user.name,
-                            "speaker_id": int(user_id),
-                            "original_text": original_text,
-                            "original_language": speaker_main_language,
-                            "translated_text": display_text,
-                            "target_language": display_language,
-                            "timestamp": db_message.timestamp.isoformat() + "Z",
-                            "transcription_id": db_transcription.id
-                        }
-                        
-                        # Send to specific participant
-                        await manager.send_to_user(json.dumps(participant_message), room_id, participant_user.id)
+                        elif message.get("type") == "speaking_status":
+                            await manager.broadcast(json.dumps({
+                                "type": "speaking_status",
+                                "user_id": message["user_id"],
+                                "is_speaking": message["is_speaking"]
+                            }), room_id)
+                            continue
+
+                    except json.JSONDecodeError:
+                        print("Invalid JSON received")
+                        continue
                 
                 else:
                     continue
                     
-            except Exception as audio_error:
-                print(f"Error processing audio/message: {audio_error}")
-                continue
-
-    except WebSocketDisconnect:
-        manager.disconnect(websocket, room_id, int(user_id))
-        print(f"User {user_id} disconnected from room {room_id}")
-        
-        # Broadcast participant left
-        try:
-            await manager.broadcast(json.dumps({
-                "type": "participant_left",
-                "user_id": int(user_id)
-            }), room_id)
-        except:
-            pass
-            
-    except Exception as e:
-        print(f"Error in websocket endpoint: {e}")
-        manager.disconnect(websocket, room_id, int(user_id))
-        
-        # Broadcast participant left on error
-        try:
-            await manager.broadcast(json.dumps({
-                "type": "participant_left",
-                "user_id": int(user_id)
-            }), room_id)
-        except:
-            pass
-            
+            except WebSocketDisconnect:
+                print(f"User {user_id} disconnected from room {room_id} (WebSocketDisconnect)")
+                manager.disconnect(websocket, room_id, int(user_id))
+                await manager.broadcast(json.dumps({
+                    "type": "participant_left",
+                    "user_id": int(user_id),
+                    "user_name": user.name
+                }), room_id)
+                break
+            except Exception as e:
+                print(f"An error occurred for user {user_id} in room {room_id}: {e}")
+                # Log the exception traceback for debugging
+                import traceback
+                traceback.print_exc()
+                break
     finally:
-        db.close()
+        # Final cleanup on disconnect
+        print(f"Cleaning up connection for user {user_id} in room {room_id}")
+        manager.disconnect(websocket, room_id, int(user_id))
+        db.close() # Close db session
+        
+        # Notify remaining participants
+        await manager.broadcast(json.dumps({
+            "type": "participant_left",
+            "user_id": int(user_id),
+            "user_name": user.name if 'user' in locals() and user else f"User {user_id}"
+        }), room_id)
 
 # Database management endpoints (for development)
 @app.post("/api/admin/init-db")

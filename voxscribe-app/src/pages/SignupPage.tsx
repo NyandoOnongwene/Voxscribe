@@ -67,7 +67,7 @@ const SignupPage: React.FC = () => {
         main_language: formData.main_language
       };
 
-      const response = await fetch('http://127.0.0.1:8001/api/auth/signup', {
+      const response = await fetch('http://127.0.0.1:8000/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -151,6 +151,25 @@ class RoomService:
         
         return result
 
+    @staticmethod
+    def update_participant_language(db: Session, room_id: int, user_id: int, new_lang: str) -> bool:
+        """Update a participant's language preference in a room"""
+        try:
+            db.execute(
+                user_room_association.update().where(
+                    and_(
+                        user_room_association.c.user_id == user_id,
+                        user_room_association.c.room_id == room_id
+                    )
+                ).values(translate_to_language=new_lang)
+            )
+            db.commit()
+            return True
+        except Exception as e:
+            print(f"Error updating language preference: {e}")
+            db.rollback()
+            return False
+
 class TranscriptionService:
     @staticmethod
     def create_transcription(db: Session, user_id: int, room_id: str, 

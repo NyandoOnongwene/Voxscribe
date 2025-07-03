@@ -74,7 +74,7 @@ const Dashboard: React.FC = () => {
 
   const loadUserRooms = async (userId: number) => {
     try {
-      const response = await fetch(`http://127.0.0.1:8001/api/users/${userId}/rooms`);
+      const response = await fetch(`http://127.0.0.1:8000/api/users/${userId}/rooms`);
       if (response.ok) {
         const data = await response.json();
         setRooms(data.rooms || []);
@@ -92,7 +92,7 @@ const Dashboard: React.FC = () => {
     setSuccess('');
 
     try {
-      const response = await fetch('http://127.0.0.1:8001/api/rooms', {
+      const response = await fetch('http://127.0.0.1:8000/api/rooms', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -132,7 +132,7 @@ const Dashboard: React.FC = () => {
     setSuccess('');
 
     try {
-      const response = await fetch(`http://127.0.0.1:8001/api/rooms/${joinRoomData.room_id}/join`, {
+      const response = await fetch(`http://127.0.0.1:8000/api/rooms/${joinRoomData.room_id}/join`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

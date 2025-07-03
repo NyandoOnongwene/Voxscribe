@@ -15,10 +15,10 @@ interface Participant {
 
 interface Message {
     id?: number;
-    speaker: string;
+    speaker_name: string;
     speaker_id: number;
     original_text: string;
-    language: string;
+    original_language: string;
     translated_text: string;
     target_language: string;
     timestamp: string;
@@ -80,21 +80,14 @@ const RefreshCwIcon = ({ className }: { className: string }) => (
 */
 
 const TranscriptMessage = ({ message }: { message: Message }) => {
-    const [showOriginal, setShowOriginal] = useState(false);
-    // Use a consistent color for all speakers for now
     const userColor = 'text-blue-400';
 
     return (
-        <div onMouseEnter={() => setShowOriginal(true)} onMouseLeave={() => setShowOriginal(false)} className="relative">
+        <div>
             <p>
-                <span className={`font-bold ${userColor}`}>{message.speaker}:</span>
+                <span className={`font-bold ${userColor}`}>{message.speaker_name}:</span>
                 <span className="ml-2">{message.translated_text}</span>
             </p>
-            {showOriginal && (
-                 <div className="text-xs text-gray-400 italic ml-2 absolute bg-gray-700 px-2 py-1 rounded-md -top-7">
-                    Original ({message.language}): {message.original_text}
-                </div>
-            )}
         </div>
     );
 };
@@ -144,14 +137,14 @@ const ConvoRoom = () => {
         const fetchRoomData = async () => {
             try {
                 // Get room details
-                const roomResponse = await fetch(`http://127.0.0.1:8001/api/rooms/${roomId}/details`);
+                const roomResponse = await fetch(`http://127.0.0.1:8000/api/rooms/${roomId}/details`);
                 if (roomResponse.ok) {
                     const roomData = await roomResponse.json();
                     setRoomName(roomData.name || 'Live Convo Room');
                 }
 
                 // Get room participants
-                const participantsResponse = await fetch(`http://127.0.0.1:8001/api/rooms/${roomId}/participants`);
+                const participantsResponse = await fetch(`http://127.0.0.1:8000/api/rooms/${roomId}/participants`);
                 if (participantsResponse.ok) {
                     const participantsData = await participantsResponse.json();
                     console.log('Participants data:', participantsData);
@@ -169,7 +162,7 @@ const ConvoRoom = () => {
                 }
 
                 // Get room messages
-                const messagesResponse = await fetch(`http://127.0.0.1:8001/api/rooms/${roomId}/messages`);
+                const messagesResponse = await fetch(`http://127.0.0.1:8000/api/rooms/${roomId}/messages`);
                 if (messagesResponse.ok) {
                     const messagesData = await messagesResponse.json();
                     console.log('Messages data:', messagesData);
@@ -178,10 +171,10 @@ const ConvoRoom = () => {
                     const messagesList = Array.isArray(messagesData) ? messagesData : [];
                     setMessages(messagesList.map((msg: any) => ({
                         id: msg.id || Math.random(),
-                        speaker: msg.speaker_name || 'Unknown',
+                        speaker_name: msg.speaker_name || 'Unknown',
                         speaker_id: msg.user_id || 0,
                         original_text: msg.original_text || '',
-                        language: msg.original_language || 'en',
+                        original_language: msg.original_language || 'en',
                         translated_text: msg.translated_text || msg.original_text || '',
                         target_language: msg.target_language || msg.original_language || 'en',
                         timestamp: msg.timestamp || new Date().toISOString()
@@ -202,7 +195,7 @@ const ConvoRoom = () => {
 
         const connectWebSocket = () => {
             // Use correct port (8001) for backend connection
-            const wsUrl = `ws://127.0.0.1:8001/ws/${roomId}/${currentUser.id}`;
+            const wsUrl = `ws://127.0.0.1:8000/ws/${roomId}/${currentUser.id}`;
             console.log(`Connecting to WebSocket: ${wsUrl}`);
             wsRef.current = new WebSocket(wsUrl);
 
@@ -237,10 +230,10 @@ const ConvoRoom = () => {
                             if (data.target_language === translateTo || data.speaker_id === currentUser.id) {
                                 const newMessage: Message = {
                                     id: data.message_id,
-                                    speaker: data.speaker_name,
+                                    speaker_name: data.speaker_name,
                                     speaker_id: data.speaker_id,
                                     original_text: data.original_text,
-                                    language: data.original_language,
+                                    original_language: data.original_language,
                                     translated_text: data.translated_text || data.original_text,
                                     target_language: data.target_language,
                                     timestamp: data.timestamp || new Date().toISOString()
